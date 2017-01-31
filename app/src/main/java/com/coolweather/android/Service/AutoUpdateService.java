@@ -9,15 +9,14 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 
+import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
-import com.coolweather.android.util.HttpUtil;
-import com.coolweather.android.util.Utility;
+import com.coolweather.android.util.QueryArea;
+import com.google.gson.Gson;
 
-import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
+import okhttp3.ResponseBody;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AutoUpdateService extends Service {
 
@@ -45,46 +44,57 @@ public class AutoUpdateService extends Service {
         String weatherString = prefs.getString("weather",null);
         //有缓存时才有必要更新数据
         if (weatherString != null){
-            Weather weather = Utility.handleWeatherResponse(weatherString);
+            Gson gson = new Gson();
+            HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
             String weatherId = weather.basic.weatherId;
-            String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId +
-                    "&key=a52f1791bae84198a717cf47d6d802c5";
-            HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+            String apiKey = "&key=a52f1791bae84198a717cf47d6d802c5";
+            Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
+                    .addConverterFactory(GsonConverterFactory.create()).build();
+            QueryArea queryWeather = retrofit.create(QueryArea.class);
+            retrofit2.Call<Weather> call = queryWeather.queryWeather(weatherId,apiKey);
+            call.enqueue(new retrofit2.Callback<Weather>() {
                 @Override
-                public void onFailure(Call call, IOException e) {
-                    e.printStackTrace();
+                public void onResponse(retrofit2.Call<Weather> call, retrofit2.Response<Weather> response) {
+                    Gson gson = new Gson();
+                    HeWeather weather = response.body().HeWeather.get(0);
+                    String responseText = gson.toJson(weather);
+                    if (weather != null && "ok".equals(weather.status)) {
+                        SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences
+                                (AutoUpdateService.this).edit();
+                        editor.putString("weather", responseText);
+                        editor.apply();
+                    }
                 }
 
                 @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    String responseText = response.body().string();
-                    Weather weather = Utility.handleWeatherResponse(responseText);
-                    if (weather != null && "0k".equals(weather.status)){
-                        SharedPreferences.Editor editor =
-                                PreferenceManager.getDefaultSharedPreferences(AutoUpdateService.this).edit();
-                        editor.putString("weather",responseText);
-                        editor.apply();
-                    }
+                public void onFailure(retrofit2.Call<Weather> call, Throwable t) {
+
                 }
             });
         }
     }
 
     private void updateBingPic(){
-        String bingUrl = "http://guolin.tech/api/bing_pic";
-        HttpUtil.sendOkHttpRequest(bingUrl, new Callback() {
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/").build();
+        QueryArea queryBing = retrofit.create(QueryArea.class);
+        retrofit2.Call<ResponseBody> call = queryBing.queryBingPic();
+        call.enqueue(new retrofit2.Callback<ResponseBody>() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+            public void onResponse(retrofit2.Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+                try{
+                    String bingUrl = response.body().string();
+                    SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences
+                            (AutoUpdateService.this).edit();
+                    editor.putString("bing_pic",bingUrl);
+                    editor.apply();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String bingPic = response.body().string();
-                SharedPreferences.Editor editor =
-                        PreferenceManager.getDefaultSharedPreferences(AutoUpdateService.this).edit();
-                editor.putString("bing_pic",bingPic);
-                editor.apply();
+            public void onFailure(retrofit2.Call<ResponseBody> call, Throwable t) {
+
             }
         });
     }

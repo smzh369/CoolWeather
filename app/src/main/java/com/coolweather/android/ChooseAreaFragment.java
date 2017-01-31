@@ -3,7 +3,6 @@ package com.coolweather.android;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,18 +17,19 @@ import android.widget.Toast;
 import com.coolweather.android.db.City;
 import com.coolweather.android.db.County;
 import com.coolweather.android.db.Province;
-import com.coolweather.android.util.HttpUtil;
+import com.coolweather.android.util.QueryArea;
 import com.coolweather.android.util.Utility;
 
 import org.litepal.crud.DataSupport;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 /**
  * Created by 令子 on 2017/1/21.
@@ -135,8 +135,7 @@ public class ChooseAreaFragment extends Fragment {
             listView.setSelection(0);
             currentLevel = LEVEL_PROVINCE;
         }else {
-            String address = "http://guolin.tech/api/china";
-            queryFromServer(address,"province");
+            queryFromServer(0,0,"province");
         }
     }
 
@@ -155,8 +154,7 @@ public class ChooseAreaFragment extends Fragment {
             currentLevel = LEVEL_CITY;
         }else {
             int provinceCode = selectedProvince.getProvinceCode();
-            String address = "http://guolin.tech/api/china/" + provinceCode;
-            queryFromServer(address,"city");
+            queryFromServer(provinceCode,0,"city");
         }
     }
 
@@ -176,52 +174,66 @@ public class ChooseAreaFragment extends Fragment {
         }else {
             int provinceCode = selectedProvince.getProvinceCode();
             int cityCode = selectedCity.getCityCode();
-            String address = "http://guolin.tech/api/china/" + provinceCode + "/" +cityCode;
-            queryFromServer(address,"county");
+            queryFromServer(provinceCode,cityCode,"county");
         }
     }
 
     /**根据传入的代号和类型在服务器上查询数据**/
-    private void  queryFromServer(String address,final String type){
+    private void  queryFromServer(int provinceCode,int cityCode,final String type){
         showProgressDialog();
-        HttpUtil.sendOkHttpRequest(address, new Callback() {
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
+                .build();
+        QueryArea queryArea = retrofit.create(QueryArea.class);
+        Call<ResponseBody> call = null;
+        if("province".equals(type)){
+            call = queryArea.queryProvince();
+        }else if ("city".equals(type)){
+            call = queryArea.queryCity(provinceCode);
+        }else if ("county".equals(type)){
+            call = queryArea.queryCounty(provinceCode,cityCode);
+        }
+        call.enqueue(new Callback<ResponseBody>() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                getActivity().runOnUiThread(new Runnable() {
+            public void onResponse(Call<ResponseBody> call,final Response<ResponseBody> response) {
+                new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        closeProgressDialog();
-                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+                        try{
+                            String responseText = response.body().string();
+                            boolean result = false;
+                            if ("province".equals(type)){
+                                result = Utility.handleProvinceResponse(responseText);
+                            }else if ("city".equals(type)){
+                                result = Utility.handleCityResponse(responseText,selectedProvince.getId());
+                            }else if ("county".equals(type)){
+                                result = Utility.handleCountyResponse(responseText,selectedCity.getId());
+                            }
+                            if (result){
+                                getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        closeProgressDialog();
+                                        if ("province".equals(type)){
+                                            queryProvinces();
+                                        }else if ("city".equals(type)){
+                                            queryCities();
+                                        }else if ("county".equals(type)){
+                                            queryCounties();
+                                        }
+                                    }
+                                });
+                            }
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
                     }
-                });
+                }).start();
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String responseText = response.body().string();
-                boolean result = false;
-                if ("province".equals(type)){
-                    result = Utility.handleProvinceResponse(responseText);
-                }else if ("city".equals(type)){
-                    result = Utility.handleCityResponse(responseText,selectedProvince.getId());
-                }else if ("county".equals(type)){
-                    result = Utility.handleCountyResponse(responseText,selectedCity.getId());
-                }
-                if (result){
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            closeProgressDialog();
-                            if ("province".equals(type)){
-                                queryProvinces();
-                            }else if ("city".equals(type)){
-                                queryCities();
-                            }else if ("county".equals(type)){
-                                queryCounties();
-                            }
-                        }
-                    });
-                }
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                closeProgressDialog();
+                Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
             }
         });
     }

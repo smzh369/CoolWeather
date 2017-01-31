@@ -22,15 +22,18 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.coolweather.android.Service.AutoUpdateService;
 import com.coolweather.android.gson.Forecast;
+import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
-import com.coolweather.android.util.HttpUtil;
-import com.coolweather.android.util.Utility;
+import com.coolweather.android.util.QueryArea;
+import com.google.gson.Gson;
 
-import java.io.IOException;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * Created by 令子 on 2017/1/22.
@@ -103,11 +106,11 @@ public class WeatherActivity extends AppCompatActivity {
         }else {
             loadBingPic();
         }
-        final String weatherId;
+        String weatherId;
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
-            Weather weather = Utility.handleWeatherResponse(weatherString);
-            weatherId = weather.basic.weatherId;
+            Gson gson = new Gson();
+            HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
             showWeatherInfo(weather);
         } else {
             // 无缓存时去服务器查询天气
@@ -118,6 +121,12 @@ public class WeatherActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+                SharedPreferences prefs = PreferenceManager
+                        .getDefaultSharedPreferences(WeatherActivity.this);
+                String weatherString = prefs.getString("weather", null);
+                Gson gson = new Gson();
+                HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
+                String weatherId = weather.basic.weatherId;
                 requestWeather(weatherId);
             }
         });
@@ -133,38 +142,33 @@ public class WeatherActivity extends AppCompatActivity {
      * 根据天气id请求城市天气信息。
      */
     public void requestWeather(final String weatherId) {
-        String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=a52f1791bae84198a717cf47d6d802c5";
-        HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+        String apiKey = "a52f1791bae84198a717cf47d6d802c5";
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
+                .addConverterFactory(GsonConverterFactory.create(new Gson())).build();
+        QueryArea queryWeather = retrofit.create(QueryArea.class);
+        Call<Weather> call = queryWeather.queryWeather(weatherId,apiKey);
+        call.enqueue(new Callback<Weather>() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String responseText = response.body().string();
-                final Weather weather = Utility.handleWeatherResponse(responseText);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (weather != null && "ok".equals(weather.status)) {
-                            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
-                            editor.putString("weather", responseText);
-                            editor.apply();
-                            showWeatherInfo(weather);
-                        } else {
-                            Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                        }
-                        swipeRefresh.setRefreshing(false);
-                    }
-                });
+            public void onResponse(Call<Weather> call, Response<Weather> response) {
+                Gson gson = new Gson();
+                HeWeather weather = response.body().HeWeather.get(0);
+                String responseText = gson.toJson(weather);
+                if (weather != null && "ok".equals(weather.status)) {
+                    SharedPreferences.Editor editor = PreferenceManager
+                            .getDefaultSharedPreferences(WeatherActivity.this).edit();
+                    editor.putString("weather", responseText);
+                    editor.apply();
+                    showWeatherInfo(weather);
+                } else {
+                    Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                }
+                swipeRefresh.setRefreshing(false);
             }
 
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                        swipeRefresh.setRefreshing(false);
-                    }
-                });
+            public void onFailure(Call<Weather> call, Throwable t) {
+                Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                swipeRefresh.setRefreshing(false);
             }
         });
         loadBingPic();
@@ -173,7 +177,7 @@ public class WeatherActivity extends AppCompatActivity {
     /**
      * 处理并展示Weather实体类中的数据。
      */
-    private void showWeatherInfo(Weather weather) {
+    private void showWeatherInfo(HeWeather weather) {
         String cityName = weather.basic.cityName;
         String updateTime = weather.basic.update.updateTime.split(" ")[1];
         String degree = weather.now.temperature + "℃";
@@ -212,25 +216,26 @@ public class WeatherActivity extends AppCompatActivity {
 
     /**加载bing每日一图**/
     private void loadBingPic(){
-        String bingUrl = "http://guolin.tech/api/bing_pic";
-        HttpUtil.sendOkHttpRequest(bingUrl, new Callback() {
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/").build();
+        QueryArea queryBing = retrofit.create(QueryArea.class);
+        Call<ResponseBody> call = queryBing.queryBingPic();
+        call.enqueue(new Callback<ResponseBody>() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                try{
+                    String bingUrl = response.body().string();
+                    SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+                    editor.putString("bing_pic",bingUrl);
+                    editor.apply();
+                    Glide.with(WeatherActivity.this).load(bingUrl).into(bingPicImg);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String bingPic = response.body().string();
-                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
-                editor.putString("bing_pic",bingPic);
-                editor.apply();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Glide.with(WeatherActivity.this).load(bingPic).into(bingPicImg);
-                    }
-                });
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Toast.makeText(WeatherActivity.this, "加载必应图片失败", Toast.LENGTH_SHORT).show();
             }
         });
     }
