@@ -19,16 +19,19 @@ import com.coolweather.android.db.County;
 import com.coolweather.android.db.Province;
 import com.coolweather.android.util.QueryArea;
 import com.coolweather.android.util.Utility;
+import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 
 import org.litepal.crud.DataSupport;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 
 /**
@@ -179,12 +182,78 @@ public class ChooseAreaFragment extends Fragment {
     }
 
     /**根据传入的代号和类型在服务器上查询数据**/
-    private void  queryFromServer(int provinceCode,int cityCode,final String type){
+    private void  queryFromServer(int provinceCode,int cityCode,final String type) {
         showProgressDialog();
         Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .build();
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
         QueryArea queryArea = retrofit.create(QueryArea.class);
-        Call<ResponseBody> call = null;
+        Subscriber subscriber = new Subscriber<ResponseBody>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                s.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(ResponseBody o) {
+                if ("province".equals(type)){
+                    queryProvinces();
+                }else if ("city".equals(type)){
+                    queryCities();
+                }else if ("county".equals(type)){
+                    queryCounties();
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                t.printStackTrace();
+                Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onComplete() {
+                closeProgressDialog();
+            }
+        };
+        if("province".equals(type)){
+            queryArea.queryProvince()
+                    .subscribeOn(Schedulers.io())
+                    .doOnNext(new Consumer<ResponseBody>() {
+                        @Override
+                        public void accept(ResponseBody responseBody) throws Exception {
+                            String responseText = responseBody.string();
+                            Utility.handleProvinceResponse(responseText);
+                        }
+                    })
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(subscriber);
+        }else if ("city".equals(type)){
+            queryArea.queryCity(provinceCode)
+                    .subscribeOn(Schedulers.io())
+                    .doOnNext(new Consumer<ResponseBody>() {
+                        @Override
+                        public void accept(ResponseBody responseBody) throws Exception {
+                            String responseText = responseBody.string();
+                            Utility.handleCityResponse(responseText,selectedProvince.getId());
+                        }
+                    })
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(subscriber);
+        }else if ("county".equals(type)){
+            queryArea.queryCounty(provinceCode,cityCode)
+                    .subscribeOn(Schedulers.io())
+                    .doOnNext(new Consumer<ResponseBody>() {
+                        @Override
+                        public void accept(ResponseBody responseBody) throws Exception {
+                            String responseText = responseBody.string();
+                            Utility.handleCountyResponse(responseText,selectedCity.getId());
+                        }
+                    })
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(subscriber);
+        }
+    }
+        /*Call<ResponseBody> call = null;
         if("province".equals(type)){
             call = queryArea.queryProvince();
         }else if ("city".equals(type)){
@@ -236,7 +305,7 @@ public class ChooseAreaFragment extends Fragment {
                 Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
             }
         });
-    }
+    }*/
 
     /**显示进度对话框**/
     private void showProgressDialog(){

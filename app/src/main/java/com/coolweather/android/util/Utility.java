@@ -17,7 +17,7 @@ import org.json.JSONObject;
 public class Utility {
 
     /**解析和处理服务器返回的省级数据**/
-    public static boolean handleProvinceResponse(String response){
+    public static void handleProvinceResponse(String response){
         if (!TextUtils.isEmpty(response)){
             try {
                 JSONArray allProvinces = new JSONArray(response);
@@ -28,16 +28,14 @@ public class Utility {
                     province.setProvinceCode(provinceObject.getInt("id"));
                     province.save();
                 }
-                return true;
             }catch (JSONException e){
                 e.printStackTrace();
             }
         }
-        return false;
     }
 
     /**解析和处理服务器返回的市级数据**/
-    public static boolean handleCityResponse(String response,int provinceId){
+    public static void handleCityResponse(String response,int provinceId){
         if (!TextUtils.isEmpty(response)){
             try {
                 JSONArray allCities = new JSONArray(response);
@@ -49,16 +47,14 @@ public class Utility {
                     city.setProvinceId(provinceId);
                     city.save();
                 }
-                return true;
             }catch (JSONException e){
                 e.printStackTrace();
             }
         }
-        return false;
     }
 
     /**解析和处理服务器返回的县级数据**/
-    public static boolean handleCountyResponse(String response,int cityId){
+    public static void handleCountyResponse(String response,int cityId){
         if (!TextUtils.isEmpty(response)){
             try {
                 JSONArray allCounties = new JSONArray(response);
@@ -70,11 +66,9 @@ public class Utility {
                     county.setCityId(cityId);
                     county.save();
                 }
-                return true;
             }catch (JSONException e){
                 e.printStackTrace();
             }
         }
-        return false;
     }
 }

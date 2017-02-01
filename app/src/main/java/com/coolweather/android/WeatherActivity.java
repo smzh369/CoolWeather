@@ -26,12 +26,16 @@ import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
 import com.coolweather.android.util.QueryArea;
 import com.google.gson.Gson;
+import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 
 
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -110,8 +114,8 @@ public class WeatherActivity extends AppCompatActivity {
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
             Gson gson = new Gson();
-            HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
-            showWeatherInfo(weather);
+            HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
+            showWeatherInfo(heWeather);
         } else {
             // 无缓存时去服务器查询天气
             weatherId = getIntent().getStringExtra("weather_id");
@@ -125,8 +129,8 @@ public class WeatherActivity extends AppCompatActivity {
                         .getDefaultSharedPreferences(WeatherActivity.this);
                 String weatherString = prefs.getString("weather", null);
                 Gson gson = new Gson();
-                HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
-                String weatherId = weather.basic.weatherId;
+                HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
+                String weatherId = heWeather.basic.weatherId;
                 requestWeather(weatherId);
             }
         });
@@ -144,50 +148,72 @@ public class WeatherActivity extends AppCompatActivity {
     public void requestWeather(final String weatherId) {
         String apiKey = "a52f1791bae84198a717cf47d6d802c5";
         Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .addConverterFactory(GsonConverterFactory.create(new Gson())).build();
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .build();
         QueryArea queryWeather = retrofit.create(QueryArea.class);
-        Call<Weather> call = queryWeather.queryWeather(weatherId,apiKey);
-        call.enqueue(new Callback<Weather>() {
-            @Override
-            public void onResponse(Call<Weather> call, Response<Weather> response) {
-                Gson gson = new Gson();
-                HeWeather weather = response.body().HeWeather.get(0);
-                String responseText = gson.toJson(weather);
-                if (weather != null && "ok".equals(weather.status)) {
-                    SharedPreferences.Editor editor = PreferenceManager
-                            .getDefaultSharedPreferences(WeatherActivity.this).edit();
-                    editor.putString("weather", responseText);
-                    editor.apply();
-                    showWeatherInfo(weather);
-                } else {
-                    Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                }
-                swipeRefresh.setRefreshing(false);
-            }
+        queryWeather.queryWeather(weatherId,apiKey)
+                .subscribeOn(Schedulers.io())
+                .doAfterNext(new Consumer<Weather>() {
+                    @Override
+                    public void accept(Weather weather) throws Exception {
+                        Gson gson = new Gson();
+                        HeWeather heWeather = weather.HeWeather.get(0);
+                        String responseText = gson.toJson(heWeather);
+                        if (heWeather != null && "ok".equals(heWeather.status)) {
+                            SharedPreferences.Editor editor = PreferenceManager
+                                    .getDefaultSharedPreferences(WeatherActivity.this).edit();
+                            editor.putString("weather", responseText);
+                            editor.apply();
+                        }
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<Weather>() {
+                    @Override
+                    public void onSubscribe(Subscription s) {
+                        s.request(Long.MAX_VALUE);
+                    }
 
-            @Override
-            public void onFailure(Call<Weather> call, Throwable t) {
-                Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
-                swipeRefresh.setRefreshing(false);
-            }
-        });
+                    @Override
+                    public void onNext(Weather weather) {
+                        HeWeather heWeather = weather.HeWeather.get(0);
+                        if (heWeather != null && "ok".equals(heWeather.status)) {
+                            showWeatherInfo(heWeather);
+                        }else {
+                            Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        t.printStackTrace();
+                        Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
         loadBingPic();
     }
 
     /**
      * 处理并展示Weather实体类中的数据。
      */
-    private void showWeatherInfo(HeWeather weather) {
-        String cityName = weather.basic.cityName;
-        String updateTime = weather.basic.update.updateTime.split(" ")[1];
-        String degree = weather.now.temperature + "℃";
-        String weatherInfo = weather.now.more.info;
+    private void showWeatherInfo(HeWeather heWeather) {
+        String cityName = heWeather.basic.cityName;
+        String updateTime = heWeather.basic.update.updateTime.split(" ")[1];
+        String degree = heWeather.now.temperature + "℃";
+        String heWeatherInfo = heWeather.now.more.info;
         titleCity.setText(cityName);
         titleUpdateTime.setText(updateTime);
         degreeText.setText(degree);
-        weatherInfoText.setText(weatherInfo);
+        weatherInfoText.setText(heWeatherInfo);
         forecastLayout.removeAllViews();
-        for (Forecast forecast : weather.forecastList) {
+        for (Forecast forecast : heWeather.forecastList) {
             View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
             TextView dateText = (TextView) view.findViewById(R.id.date_text);
             TextView infoText = (TextView) view.findViewById(R.id.info_text);
@@ -199,13 +225,13 @@ public class WeatherActivity extends AppCompatActivity {
             minText.setText(forecast.temperature.min);
             forecastLayout.addView(view);
         }
-        if (weather.aqi != null) {
-            aqiText.setText(weather.aqi.city.aqi);
-            pm25Text.setText(weather.aqi.city.pm25);
+        if (heWeather.aqi != null) {
+            aqiText.setText(heWeather.aqi.city.aqi);
+            pm25Text.setText(heWeather.aqi.city.pm25);
         }
-        String comfort = "舒适度：" + weather.suggestion.comfort.info;
-        String carWash = "洗车指数：" + weather.suggestion.carWash.info;
-        String sport = "运行建议：" + weather.suggestion.sport.info;
+        String comfort = "舒适度：" + heWeather.suggestion.comfort.info;
+        String carWash = "洗车指数：" + heWeather.suggestion.carWash.info;
+        String sport = "运行建议：" + heWeather.suggestion.sport.info;
         comfortText.setText(comfort);
         carWashText.setText(carWash);
         sportText.setText(sport);
@@ -216,27 +242,41 @@ public class WeatherActivity extends AppCompatActivity {
 
     /**加载bing每日一图**/
     private void loadBingPic(){
-        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/").build();
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .build();
         QueryArea queryBing = retrofit.create(QueryArea.class);
-        Call<ResponseBody> call = queryBing.queryBingPic();
-        call.enqueue(new Callback<ResponseBody>() {
-            @Override
-            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                try{
-                    String bingUrl = response.body().string();
-                    SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
-                    editor.putString("bing_pic",bingUrl);
-                    editor.apply();
-                    Glide.with(WeatherActivity.this).load(bingUrl).into(bingPicImg);
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
-            }
+        queryBing.queryBingPic()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<ResponseBody>() {
+                    @Override
+                    public void onSubscribe(Subscription s) {
+                        s.request(Long.MAX_VALUE);
+                    }
 
-            @Override
-            public void onFailure(Call<ResponseBody> call, Throwable t) {
-                Toast.makeText(WeatherActivity.this, "加载必应图片失败", Toast.LENGTH_SHORT).show();
-            }
-        });
+                    @Override
+                    public void onNext(ResponseBody responseBody) {
+                        try{
+                            String bingUrl = responseBody.string();
+                            Glide.with(WeatherActivity.this).load(bingUrl).into(bingPicImg);
+                            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+                            editor.putString("bing_pic",bingUrl);
+                            editor.apply();
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        Toast.makeText(WeatherActivity.this, "加载必应图片失败", Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
     }
 }
