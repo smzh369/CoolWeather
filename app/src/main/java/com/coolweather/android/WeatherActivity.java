@@ -28,7 +28,6 @@ import com.coolweather.android.util.QueryArea;
 import com.google.gson.Gson;
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 
-
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 

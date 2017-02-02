@@ -1,16 +1,28 @@
 package com.coolweather.android.db;
 
-import org.litepal.crud.DataSupport;
+
+import com.raizlabs.android.dbflow.annotation.Column;
+import com.raizlabs.android.dbflow.annotation.PrimaryKey;
+import com.raizlabs.android.dbflow.annotation.Table;
+import com.raizlabs.android.dbflow.structure.BaseModel;
 
 /**
  * Created by 令子 on 2017/1/21.
  */
 
-public class City extends DataSupport {
+@Table(database = AppDatabase.class)
+public class City extends BaseModel{
 
+    @PrimaryKey(autoincrement = true)
     private int id;
+
+    @Column
     private String cityName;
+
+    @Column
     private int cityCode;
+
+    @Column
     private int provinceId;
 
     public int getId(){

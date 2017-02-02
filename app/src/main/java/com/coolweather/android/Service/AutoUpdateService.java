@@ -9,13 +9,11 @@ import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 
-
 import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
 import com.coolweather.android.util.QueryArea;
 import com.google.gson.Gson;
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
-
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.functions.Consumer;

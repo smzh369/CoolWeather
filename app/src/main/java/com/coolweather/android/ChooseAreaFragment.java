@@ -15,13 +15,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.coolweather.android.db.City;
+import com.coolweather.android.db.City_Table;
 import com.coolweather.android.db.County;
+import com.coolweather.android.db.County_Table;
 import com.coolweather.android.db.Province;
 import com.coolweather.android.util.QueryArea;
 import com.coolweather.android.util.Utility;
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import com.raizlabs.android.dbflow.sql.language.SQLite;
 
-import org.litepal.crud.DataSupport;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
@@ -128,7 +130,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryProvinces(){
         titleText.setText("中国");
         backButton.setVisibility(View.GONE);
-        provinceList = DataSupport.findAll(Province.class);
+        provinceList = SQLite.select().from(Province.class).queryList();
         if(provinceList.size() > 0){
             dataList.clear();
             for (Province province : provinceList){
@@ -146,7 +148,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCities(){
         titleText.setText(selectedProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
-        cityList = DataSupport.where("provinceid = ?",String.valueOf(selectedProvince.getId())).find(City.class);
+        cityList = SQLite.select().from(City.class).where(City_Table.provinceId.eq(selectedProvince.getId())).queryList();
         if(cityList.size() > 0){
             dataList.clear();
             for (City city : cityList){
@@ -165,7 +167,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCounties(){
         titleText.setText(selectedCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
-        countyList = DataSupport.where("cityid = ?",String.valueOf(selectedCity.getId())).find(County.class);
+        countyList = SQLite.select().from(County.class).where(County_Table.cityId.eq(selectedCity.getId())).queryList();
         if(countyList.size() > 0){
             dataList.clear();
             for (County county : countyList){
@@ -253,59 +255,6 @@ public class ChooseAreaFragment extends Fragment {
                     .subscribe(subscriber);
         }
     }
-        /*Call<ResponseBody> call = null;
-        if("province".equals(type)){
-            call = queryArea.queryProvince();
-        }else if ("city".equals(type)){
-            call = queryArea.queryCity(provinceCode);
-        }else if ("county".equals(type)){
-            call = queryArea.queryCounty(provinceCode,cityCode);
-        }
-        call.enqueue(new Callback<ResponseBody>() {
-            @Override
-            public void onResponse(Call<ResponseBody> call,final Response<ResponseBody> response) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try{
-                            String responseText = response.body().string();
-                            boolean result = false;
-                            if ("province".equals(type)){
-                                result = Utility.handleProvinceResponse(responseText);
-                            }else if ("city".equals(type)){
-                                result = Utility.handleCityResponse(responseText,selectedProvince.getId());
-                            }else if ("county".equals(type)){
-                                result = Utility.handleCountyResponse(responseText,selectedCity.getId());
-                            }
-                            if (result){
-                                getActivity().runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        closeProgressDialog();
-                                        if ("province".equals(type)){
-                                            queryProvinces();
-                                        }else if ("city".equals(type)){
-                                            queryCities();
-                                        }else if ("county".equals(type)){
-                                            queryCounties();
-                                        }
-                                    }
-                                });
-                            }
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                    }
-                }).start();
-            }
-
-            @Override
-            public void onFailure(Call<ResponseBody> call, Throwable t) {
-                closeProgressDialog();
-                Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
-            }
-        });
-    }*/
 
     /**显示进度对话框**/
     private void showProgressDialog(){
