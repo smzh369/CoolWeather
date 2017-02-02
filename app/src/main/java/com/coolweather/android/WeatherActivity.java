@@ -34,6 +34,7 @@ import org.reactivestreams.Subscription;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
 import retrofit2.Retrofit;
@@ -248,24 +249,32 @@ public class WeatherActivity extends AppCompatActivity {
         QueryArea queryBing = retrofit.create(QueryArea.class);
         queryBing.queryBingPic()
                 .subscribeOn(Schedulers.io())
+                .map(new Function<ResponseBody, String>() {
+                    @Override
+                    public String apply(ResponseBody responseBody) throws Exception {
+                        String responseText = responseBody.string();
+                        responseBody.close();
+                        return responseText;
+                    }
+                })
+                .doAfterNext(new Consumer<String>() {
+                    @Override
+                    public void accept(String bingUrl) throws Exception {
+                        SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+                        editor.putString("bing_pic",bingUrl);
+                        editor.apply();
+                    }
+                })
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Subscriber<ResponseBody>() {
+                .subscribe(new Subscriber<String>() {
                     @Override
                     public void onSubscribe(Subscription s) {
                         s.request(Long.MAX_VALUE);
                     }
 
                     @Override
-                    public void onNext(ResponseBody responseBody) {
-                        try{
-                            String bingUrl = responseBody.string();
-                            Glide.with(WeatherActivity.this).load(bingUrl).into(bingPicImg);
-                            SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
-                            editor.putString("bing_pic",bingUrl);
-                            editor.apply();
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
+                    public void onNext(String bingUrl) {
+                        Glide.with(WeatherActivity.this).load(bingUrl).into(bingPicImg);
                     }
 
                     @Override
