@@ -2,6 +2,7 @@ package com.coolweather.android;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -9,11 +10,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import com.coolweather.android.Binding.Area;
+import com.coolweather.android.databinding.ChooseAreaBinding;
 import com.coolweather.android.db.City;
 import com.coolweather.android.db.City_Table;
 import com.coolweather.android.db.County;
@@ -50,12 +50,6 @@ public class ChooseAreaFragment extends Fragment {
 
     private ProgressDialog progressDialog;
 
-    private TextView titleText;
-
-    private Button backButton;
-
-    private ListView listView;
-
     private ArrayAdapter<String> adapter;
 
     private List<String> dataList = new ArrayList<>();
@@ -72,23 +66,25 @@ public class ChooseAreaFragment extends Fragment {
     /**当前选中的级别**/
     private int currentLevel;
 
-    /**是否从WeatherActivity中跳转过来**/
+    /**Databinding**/
+    private ChooseAreaBinding binding;
+    private Area area;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.choose_area,container,false);
-        titleText = (TextView)view.findViewById(R.id.title_text);
-        backButton = (Button)view.findViewById(R.id.back_button);
-        listView = (ListView)view.findViewById(R.id.list_view);
+        binding = DataBindingUtil.inflate(inflater,R.layout.choose_area,container,false);
+        area = new Area();
+        area.areaName.set("");
+        binding.setArea(area);
         adapter = new ArrayAdapter<>(getContext(),android.R.layout.simple_list_item_1,dataList);
-        listView.setAdapter(adapter);
-        return view;
+        binding.listView.setAdapter(adapter);
+        return binding.getRoot();
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        binding.listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 if(currentLevel == LEVEL_PROVINCE){
@@ -113,7 +109,7 @@ public class ChooseAreaFragment extends Fragment {
                 }
             }
         });
-        backButton.setOnClickListener(new View.OnClickListener() {
+        binding.backButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if(currentLevel == LEVEL_COUNTY){
@@ -128,8 +124,8 @@ public class ChooseAreaFragment extends Fragment {
 
     /**查询全国所有的省，优先从数据库查询，没有再去服务器查询**/
     private void queryProvinces(){
-        titleText.setText("中国");
-        backButton.setVisibility(View.GONE);
+        area.areaName.set("中国");
+        binding.backButton.setVisibility(View.GONE);
         provinceList = SQLite.select().from(Province.class).queryList();
         if(provinceList.size() > 0){
             dataList.clear();
@@ -137,7 +133,7 @@ public class ChooseAreaFragment extends Fragment {
                 dataList.add(province.getProvinceName());
             }
             adapter.notifyDataSetChanged();
-            listView.setSelection(0);
+            binding.listView.setSelection(0);
             currentLevel = LEVEL_PROVINCE;
         }else {
             queryFromServer(0,0,"province");
@@ -146,8 +142,8 @@ public class ChooseAreaFragment extends Fragment {
 
     /**查询选中省内所有的市，优先从数据库查询，没有再去服务器查询**/
     private void queryCities(){
-        titleText.setText(selectedProvince.getProvinceName());
-        backButton.setVisibility(View.VISIBLE);
+        area.areaName.set(selectedProvince.getProvinceName());
+        binding.backButton.setVisibility(View.VISIBLE);
         cityList = SQLite.select().from(City.class).where(City_Table.provinceId.eq(selectedProvince.getId())).queryList();
         if(cityList.size() > 0){
             dataList.clear();
@@ -155,7 +151,7 @@ public class ChooseAreaFragment extends Fragment {
                 dataList.add(city.getCityName());
             }
             adapter.notifyDataSetChanged();
-            listView.setSelection(0);
+            binding.listView.setSelection(0);
             currentLevel = LEVEL_CITY;
         }else {
             int provinceCode = selectedProvince.getProvinceCode();
@@ -165,8 +161,8 @@ public class ChooseAreaFragment extends Fragment {
 
     /**查询选中市内所有的县，优先从数据库查询，没有再去服务器查询**/
     private void queryCounties(){
-        titleText.setText(selectedCity.getCityName());
-        backButton.setVisibility(View.VISIBLE);
+        area.areaName.set(selectedCity.getCityName());
+        binding.backButton.setVisibility(View.VISIBLE);
         countyList = SQLite.select().from(County.class).where(County_Table.cityId.eq(selectedCity.getId())).queryList();
         if(countyList.size() > 0){
             dataList.clear();
@@ -174,7 +170,7 @@ public class ChooseAreaFragment extends Fragment {
                 dataList.add(county.getCountyName());
             }
             adapter.notifyDataSetChanged();
-            listView.setSelection(0);
+            binding.listView.setSelection(0);
             currentLevel = LEVEL_COUNTY;
         }else {
             int provinceCode = selectedProvince.getProvinceCode();

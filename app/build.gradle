@@ -9,8 +9,8 @@ android {
         applicationId "com.coolweather.android"
         minSdkVersion 15
         targetSdkVersion 25
-        versionCode 4
-        versionName "1.2.1"
+        versionCode 5
+        versionName "1.3"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -18,6 +18,9 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+    dataBinding {
+        enabled = true
     }
 }
 
