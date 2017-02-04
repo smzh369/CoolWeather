@@ -1,8 +1,6 @@
 package com.coolweather.android.Binding;
 
 import android.databinding.ObservableField;
-import android.view.View;
-
 
 
 /**

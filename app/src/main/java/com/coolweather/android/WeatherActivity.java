@@ -7,25 +7,19 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.view.GravityCompat;
-import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.coolweather.android.Binding.ForcastInfo;
+import com.coolweather.android.Binding.Handers;
 import com.coolweather.android.Binding.WeatherInfo;
 import com.coolweather.android.Service.AutoUpdateService;
 import com.coolweather.android.databinding.ActivityWeatherBinding;
-import com.coolweather.android.databinding.ForecastBinding;
-import com.coolweather.android.databinding.TitleBinding;
+import com.coolweather.android.databinding.ForecastItemBinding;
 import com.coolweather.android.gson.Forecast;
 import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
@@ -50,11 +44,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class WeatherActivity extends AppCompatActivity {
 
-    public DrawerLayout drawerLayout;
-
-    public SwipeRefreshLayout swipeRefresh;
-
-    private ActivityWeatherBinding binding;
+    public ActivityWeatherBinding binding;
 
     private WeatherInfo weatherInfo;
 
@@ -69,28 +59,11 @@ public class WeatherActivity extends AppCompatActivity {
         }
         binding = DataBindingUtil.setContentView(this,R.layout.activity_weather);
         weatherInfo = new WeatherInfo();
+        Handers handers = new Handers();
         binding.setWeatherInfo(weatherInfo);
-        Button switchCity = (Button)findViewById(R.id.switch_city);
-        swipeRefresh = (SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
-        swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
-        drawerLayout = (DrawerLayout)findViewById(R.id.drawer_layout);
-        /*setContentView(R.layout.activity_weather);
-        // 初始化各控件
+        binding.setHanders(handers);
+        binding.swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
 
-
-        bingPicImg = (ImageView)findViewById(R.id.bing_pic_img);
-        weatherLayout = (ScrollView) findViewById(R.id.weather_layout);
-        titleCity = (TextView) findViewById(R.id.title_city);
-        titleUpdateTime = (TextView) findViewById(R.id.title_update_time);
-        degreeText = (TextView) findViewById(R.id.degree_text);
-        weatherInfoText = (TextView) findViewById(R.id.weather_info_text);
-
-        aqiText = (TextView) findViewById(R.id.aqi_text);
-        pm25Text = (TextView) findViewById(R.id.pm25_text);
-        comfortText = (TextView) findViewById(R.id.comfort_text);
-        carWashText = (TextView) findViewById(R.id.car_wash_text);
-        sportText = (TextView) findViewById(R.id.sport_text);
-        ;*/
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString("weather", null);
@@ -122,12 +95,6 @@ public class WeatherActivity extends AppCompatActivity {
                 HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
                 String weatherId = heWeather.basic.weatherId;
                 requestWeather(weatherId);
-            }
-        });
-        switchCity.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                binding.drawerLayout.openDrawer(GravityCompat.START);
             }
         });
     }
@@ -195,46 +162,26 @@ public class WeatherActivity extends AppCompatActivity {
      */
     private void showWeatherInfo(HeWeather heWeather) {
         weatherInfo.cityName.set(heWeather.basic.cityName);
-        //String cityName = heWeather.basic.cityName;
         weatherInfo.updateTime.set(heWeather.basic.update.updateTime.split(" ")[1]);
-        //String updateTime = heWeather.basic.update.updateTime.split(" ")[1];
         weatherInfo.degree.set(heWeather.now.temperature + "℃");
-        //String degree = heWeather.now.temperature + "℃";
         weatherInfo.info.set(heWeather.now.more.info);
-        //String heWeatherInfo = heWeather.now.more.info;
-        /*titleCity.setText(cityName);
-        titleUpdateTime.setText(updateTime);
-        degreeText.setText(degree);
-        weatherInfoText.setText(heWeatherInfo);*/
         LinearLayout forecastLayout = (LinearLayout)findViewById(R.id.forecast_layout);
         forecastLayout.removeAllViews();
         for (Forecast forecast : heWeather.forecastList) {
-            View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
-            TextView dateText = (TextView) view.findViewById(R.id.date_text);
-            TextView infoText = (TextView) view.findViewById(R.id.info_text);
-            TextView maxText = (TextView) view.findViewById(R.id.max_text);
-            TextView minText = (TextView) view.findViewById(R.id.min_text);
-            dateText.setText(forecast.date);
-            infoText.setText(forecast.more.info);
-            maxText.setText(forecast.temperature.max);
-            minText.setText(forecast.temperature.min);
-            forecastLayout.addView(view);
+            ForcastInfo  forcastInfo = new ForcastInfo
+                    (forecast.date,forecast.more.info,forecast.temperature.max,forecast.temperature.min);
+            ForecastItemBinding fBinding = DataBindingUtil
+                    .inflate(getLayoutInflater(),R.layout.forecast_item,forecastLayout,false);
+            fBinding.setForcastInfo(forcastInfo);
+            forecastLayout.addView(fBinding.getRoot());
         }
         if (heWeather.aqi != null) {
             weatherInfo.aqi.set(heWeather.aqi.city.aqi);
-            //aqiText.setText(heWeather.aqi.city.aqi);
             weatherInfo.pm25.set(heWeather.aqi.city.pm25);
-            //pm25Text.setText(heWeather.aqi.city.pm25);
         }
         weatherInfo.comfort.set("舒适度：" + heWeather.suggestion.comfort.info);
         weatherInfo.carWash.set("洗车指数：" + heWeather.suggestion.carWash.info);
         weatherInfo.sport.set("运行建议：" + heWeather.suggestion.sport.info);
-        /*String comfort = "舒适度：" + heWeather.suggestion.comfort.info;
-        String carWash = "洗车指数：" + heWeather.suggestion.carWash.info;
-        String sport = "运行建议：" + heWeather.suggestion.sport.info;
-        comfortText.setText(comfort);
-        carWashText.setText(carWash);
-        sportText.setText(sport);*/
         binding.weatherLayout.setVisibility(View.VISIBLE);
         Intent intent = new Intent(this, AutoUpdateService.class);
         startService(intent);

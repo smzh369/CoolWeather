@@ -5,6 +5,9 @@
         <variable
             name="weatherInfo"
             type="com.coolweather.android.Binding.WeatherInfo"/>
+        <variable
+            name="handers"
+            type="com.coolweather.android.Binding.Handers"/>
     </data>
 
     <FrameLayout
@@ -42,13 +45,13 @@
                         android:fitsSystemWindows="true">
 
                         <include layout="@layout/title"
-                                 bind:child="@{weatherInfo}"/>
+                                 bind:child="@{weatherInfo}"
+                                 bind:childHanders="@{handers}"/>
 
                         <include layout="@layout/now"
                                  bind:child="@{weatherInfo}"/>
 
-                        <include layout="@layout/forecast"
-                                 bind:child="@{weatherInfo}"/>
+                        <include layout="@layout/forecast"/>
 
                         <include layout="@layout/aqi"
                                  bind:child="@{weatherInfo}"/>
