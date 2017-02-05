@@ -5,6 +5,8 @@ import android.text.TextUtils;
 import com.coolweather.android.db.City;
 import com.coolweather.android.db.County;
 import com.coolweather.android.db.Province;
+import com.coolweather.android.gson.HeWeather;
+import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -71,4 +73,18 @@ public class Utility {
             }
         }
     }
+
+    /**将json数据转换成HeWeather对象**/
+    public static HeWeather jsonToHeWeather(String weatherString){
+        Gson gson = new Gson();
+        HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
+        return heWeather;
+    }
+
+    public static String heWeatherToJson(HeWeather heWeather){
+        Gson gson = new Gson();
+        String weatherString = gson.toJson(heWeather);
+        return weatherString;
+    }
+
 }

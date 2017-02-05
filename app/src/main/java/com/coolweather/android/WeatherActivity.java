@@ -23,9 +23,9 @@ import com.coolweather.android.databinding.ForecastItemBinding;
 import com.coolweather.android.gson.Forecast;
 import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
+import com.coolweather.android.util.HttpUtil;
 import com.coolweather.android.util.QueryArea;
-import com.google.gson.Gson;
-import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import com.coolweather.android.util.Utility;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -35,8 +35,6 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * Created by 令子 on 2017/1/22.
@@ -76,9 +74,7 @@ public class WeatherActivity extends AppCompatActivity {
         String weatherId;
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
-            Gson gson = new Gson();
-            HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
-            showWeatherInfo(heWeather);
+            showWeatherInfo(Utility.jsonToHeWeather(weatherString));
         } else {
             // 无缓存时去服务器查询天气
             weatherId = getIntent().getStringExtra("weather_id");
@@ -91,8 +87,7 @@ public class WeatherActivity extends AppCompatActivity {
                 SharedPreferences prefs = PreferenceManager
                         .getDefaultSharedPreferences(WeatherActivity.this);
                 String weatherString = prefs.getString("weather", null);
-                Gson gson = new Gson();
-                HeWeather heWeather = gson.fromJson(weatherString,HeWeather.class);
+                HeWeather heWeather = Utility.jsonToHeWeather(weatherString);
                 String weatherId = heWeather.basic.weatherId;
                 requestWeather(weatherId);
             }
@@ -104,23 +99,17 @@ public class WeatherActivity extends AppCompatActivity {
      */
     public void requestWeather(final String weatherId) {
         String apiKey = "a52f1791bae84198a717cf47d6d802c5";
-        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                .build();
-        QueryArea queryWeather = retrofit.create(QueryArea.class);
+        QueryArea queryWeather = HttpUtil.retrofitConnection();
         queryWeather.queryWeather(weatherId,apiKey)
                 .subscribeOn(Schedulers.io())
                 .doAfterNext(new Consumer<Weather>() {
                     @Override
                     public void accept(Weather weather) throws Exception {
-                        Gson gson = new Gson();
                         HeWeather heWeather = weather.HeWeather.get(0);
-                        String responseText = gson.toJson(heWeather);
                         if (heWeather != null && "ok".equals(heWeather.status)) {
                             SharedPreferences.Editor editor = PreferenceManager
                                     .getDefaultSharedPreferences(WeatherActivity.this).edit();
-                            editor.putString("weather", responseText);
+                            editor.putString("weather", Utility.heWeatherToJson(heWeather));
                             editor.apply();
                         }
                     }
@@ -168,10 +157,10 @@ public class WeatherActivity extends AppCompatActivity {
         LinearLayout forecastLayout = (LinearLayout)findViewById(R.id.forecast_layout);
         forecastLayout.removeAllViews();
         for (Forecast forecast : heWeather.forecastList) {
-            ForcastInfo  forcastInfo = new ForcastInfo
-                    (forecast.date,forecast.more.info,forecast.temperature.max,forecast.temperature.min);
             ForecastItemBinding fBinding = DataBindingUtil
                     .inflate(getLayoutInflater(),R.layout.forecast_item,forecastLayout,false);
+            ForcastInfo  forcastInfo = new ForcastInfo
+                    (forecast.date,forecast.more.info,forecast.temperature.max,forecast.temperature.min);
             fBinding.setForcastInfo(forcastInfo);
             forecastLayout.addView(fBinding.getRoot());
         }
@@ -189,10 +178,7 @@ public class WeatherActivity extends AppCompatActivity {
 
     /**加载bing每日一图**/
     private void loadBingPic(){
-        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                .build();
-        QueryArea queryBing = retrofit.create(QueryArea.class);
+        QueryArea queryBing = HttpUtil.retrofitConnection();
         queryBing.queryBingPic()
                 .subscribeOn(Schedulers.io())
                 .map(new Function<ResponseBody, String>() {

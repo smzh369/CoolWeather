@@ -19,9 +19,9 @@ import com.coolweather.android.db.City_Table;
 import com.coolweather.android.db.County;
 import com.coolweather.android.db.County_Table;
 import com.coolweather.android.db.Province;
+import com.coolweather.android.util.HttpUtil;
 import com.coolweather.android.util.QueryArea;
 import com.coolweather.android.util.Utility;
-import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import com.raizlabs.android.dbflow.sql.language.SQLite;
 
 import org.reactivestreams.Subscriber;
@@ -34,7 +34,6 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 import okhttp3.ResponseBody;
-import retrofit2.Retrofit;
 
 /**
  * Created by 令子 on 2017/1/21.
@@ -182,9 +181,7 @@ public class ChooseAreaFragment extends Fragment {
     /**根据传入的代号和类型在服务器上查询数据**/
     private void  queryFromServer(int provinceCode,int cityCode,final String type) {
         showProgressDialog();
-        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
-        QueryArea queryArea = retrofit.create(QueryArea.class);
+        QueryArea queryArea = HttpUtil.retrofitConnection();
         Subscriber subscriber = new Subscriber<ResponseBody>() {
             @Override
             public void onSubscribe(Subscription s) {

@@ -2,6 +2,8 @@ package com.coolweather.android.Binding;
 
 import android.databinding.ObservableField;
 
+import com.coolweather.android.gson.HeWeather;
+
 
 /**
  * Created by 令子 on 2017/2/3.
