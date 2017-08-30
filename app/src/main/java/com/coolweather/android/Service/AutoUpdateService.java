@@ -11,6 +11,7 @@ import android.preference.PreferenceManager;
 
 import com.coolweather.android.gson.HeWeather;
 import com.coolweather.android.gson.Weather;
+import com.coolweather.android.util.HttpUtil;
 import com.coolweather.android.util.QueryArea;
 import com.google.gson.Gson;
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
@@ -52,11 +53,7 @@ public class AutoUpdateService extends Service {
             HeWeather weather = gson.fromJson(weatherString,HeWeather.class);
             String weatherId = weather.basic.weatherId;
             String apiKey = "&key=a52f1791bae84198a717cf47d6d802c5";
-            Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                    .build();
-            QueryArea queryWeather = retrofit.create(QueryArea.class);
+            QueryArea queryWeather = HttpUtil.retrofitConnection();
             queryWeather.queryWeather(weatherId,apiKey)
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
@@ -78,9 +75,7 @@ public class AutoUpdateService extends Service {
     }
 
     private void updateBingPic(){
-        Retrofit retrofit = new Retrofit.Builder().baseUrl("http://guolin.tech/api/")
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
-        QueryArea queryBing = retrofit.create(QueryArea.class);
+        QueryArea queryBing = HttpUtil.retrofitConnection();
         queryBing.queryBingPic()
                 .subscribeOn(Schedulers.io())
                 .subscribe(new Consumer<ResponseBody>() {
