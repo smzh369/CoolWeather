@@ -41,3 +41,4 @@ captures/
 app/libs/
 libs/
 .idea/libraries/
+/gradle.properties
