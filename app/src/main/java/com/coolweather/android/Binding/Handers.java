@@ -14,7 +14,7 @@ import com.coolweather.android.R;
 public class Handers {
 
     public void onHomeClick(View view){
-        DrawerLayout drawerLayout = (DrawerLayout)view.getRootView().findViewById(R.id.drawer_layout);
+        DrawerLayout drawerLayout = view.getRootView().findViewById(R.id.drawer_layout);
         drawerLayout.openDrawer(GravityCompat.START);
     }
 

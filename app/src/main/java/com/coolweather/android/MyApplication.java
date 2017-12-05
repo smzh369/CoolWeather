@@ -2,6 +2,8 @@ package com.coolweather.android;
 
 import android.app.Application;
 
+import com.coolweather.android.db.AppDatabase;
+import com.raizlabs.android.dbflow.config.DatabaseConfig;
 import com.raizlabs.android.dbflow.config.FlowConfig;
 import com.raizlabs.android.dbflow.config.FlowManager;
 
@@ -15,8 +17,12 @@ public class MyApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        FlowManager.init(new FlowConfig.Builder(this)
-                .openDatabasesOnInit(true).build());
+        FlowManager.init(FlowConfig.builder(this)
+                .addDatabaseConfig(DatabaseConfig.builder(AppDatabase.class)
+                .databaseName("AppDatabase")
+                .build())
+                .openDatabasesOnInit(true)
+                .build());
     }
 
 }

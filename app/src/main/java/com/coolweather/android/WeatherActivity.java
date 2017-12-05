@@ -154,7 +154,7 @@ public class WeatherActivity extends AppCompatActivity {
         weatherInfo.updateTime.set(heWeather.basic.update.updateTime.split(" ")[1]);
         weatherInfo.degree.set(heWeather.now.temperature + "℃");
         weatherInfo.info.set(heWeather.now.more.info);
-        LinearLayout forecastLayout = (LinearLayout)findViewById(R.id.forecast_layout);
+        LinearLayout forecastLayout = findViewById(R.id.forecast_layout);
         forecastLayout.removeAllViews();
         for (Forecast forecast : heWeather.forecastList) {
             ForecastItemBinding fBinding = DataBindingUtil

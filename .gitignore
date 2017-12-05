@@ -38,3 +38,6 @@ captures/
 
 # Keystore files
 *.jks
+app/libs/
+libs/
+.idea/libraries/
